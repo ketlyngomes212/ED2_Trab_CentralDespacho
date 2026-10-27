@@ -2,8 +2,8 @@
 
 package main
 
-// contemID verifica se um ID já está presente na lista.
-func contemID(ids []int, id int) bool {
+//chamadoOcupado verifica se determinado chamado já foi escolhido por outra ambulância no turno
+func chamadoOcupado(ids []int, id int) bool {
 	for _, atual := range ids {
 		if atual == id {
 			return true
@@ -12,107 +12,80 @@ func contemID(ids []int, id int) bool {
 	return false
 }
 
-// escolherChamado seleciona o chamado viável mais próximo.
-// Chamados já atribuídos a outra ambulância neste turno são ignorados.
-func escolherChamado(
-	ambulancia Ambulancia,
-	chamados []Chamado,
-	atribuidos []int,
-	turno int,
-) (Chamado, bool) {
-	var melhor Chamado
+//escolherChamado seleciona o chamado mais próximo
+//o vetor de atribuidos garante que uma ambulância não siga para um chamado já escolhido por outra
+func escolherChamado(ambulancia Ambulancia, chamados []Chamado, atribuidos []int,
+	turno int) (Chamado, bool) {
+
+	var escolhido Chamado
 	encontrou := false
 	menorDistancia := 0
 
 	for _, chamado := range chamados {
-		if contemID(atribuidos, chamado.ID) {
+		if chamadoOcupado(atribuidos, chamado.ID) { //se o chamado já foi escolhido, continua
 			continue
 		}
 
-		dist := calculaDistancia(
-			ambulancia.X, ambulancia.Y,
-			chamado.X, chamado.Y,
-		)
-
-		// Só consideramos chamados que podem ser alcançados
-		// até o prazo informado pelo servidor.
-		if turno+dist > chamado.Prazo {
+		dist := calculaDistancia(ambulancia.X, ambulancia.Y, chamado.X, chamado.Y)
+		if turno+dist > chamado.Prazo { //se não vai dar tempo de chegar, continua
 			continue
 		}
 
 		if !encontrou || dist < menorDistancia ||
-			(dist == menorDistancia && chamado.Valor > melhor.Valor) {
-			melhor = chamado
-			menorDistancia = dist
+			(dist == menorDistancia && chamado.Valor > escolhido.Valor) {
+			escolhido = chamado
 			encontrou = true
+			menorDistancia = dist
 		}
 	}
 
-	return melhor, encontrou
+	return escolhido, encontrou
 }
 
-// escolherHospital encontra o hospital mais próximo.
-func escolherHospital(
-	ambulancia Ambulancia,
-	hospitais []Hospital,
-) (Hospital, bool) {
-	var melhor Hospital
+//escolherHospital seleciona o hospital mais próximo
+func escolherHospital(ambulancia Ambulancia, hospitais []Hospital) (Hospital, bool) {
+	var escolhido Hospital
 	encontrou := false
 	menorDistancia := 0
 
 	for _, hospital := range hospitais {
-		dist := calculaDistancia(
-			ambulancia.X, ambulancia.Y,
-			hospital.X, hospital.Y,
-		)
+		dist := calculaDistancia(ambulancia.X, ambulancia.Y, hospital.X, hospital.Y)
 
 		if !encontrou || dist < menorDistancia {
-			melhor = hospital
-			menorDistancia = dist
+			escolhido = hospital
 			encontrou = true
+			menorDistancia = dist
 		}
 	}
 
-	return melhor, encontrou
+	return escolhido, encontrou
 }
 
-// decidirMovimento escolhe o próximo movimento da ambulância.
-// Retorna também o ID do chamado escolhido, ou -1 se nenhum foi escolhido.
-func decidirMovimento(
-	ambulancia Ambulancia,
-	chamados []Chamado,
-	hospitais []Hospital,
-	atribuidos []int,
-	turno int,
-) (string, int) {
+//proximoMovimento define para onde a ambulância vai
+func proximoMovimento(ambulancia Ambulancia, chamados []Chamado, hospitais []Hospital,
+	atribuidos []int, turno int) (string, int) {
+
+	//Ambulância livre vai para o chamado mais próximo
 	if ambulancia.Livre {
-		chamado, encontrou := escolherChamado(
-			ambulancia, chamados, atribuidos, turno,
-		)
+		chamado, encontrou := escolherChamado(ambulancia, chamados, atribuidos, turno)
 
 		if !encontrou {
 			return "P", -1
 		}
 
-		movimento := direcao(
-			ambulancia.X, ambulancia.Y,
-			chamado.X, chamado.Y,
-		)
+		movimento := direcao(ambulancia.X, ambulancia.Y, chamado.X, chamado.Y)
 
 		return movimento, chamado.ID
 	}
 
-	// Ambulância ocupada: seguir para o hospital mais próximo.
+	//Ambulância ocupada vai para o hospital mais próximo
 	hospital, encontrou := escolherHospital(ambulancia, hospitais)
 
 	if !encontrou {
 		return "P", -1
 	}
 
-	movimento := direcao(
-		ambulancia.X, ambulancia.Y,
-		hospital.X, hospital.Y,
-	)
+	movimento := direcao(ambulancia.X, ambulancia.Y, hospital.X, hospital.Y)
 
 	return movimento, -1
 }

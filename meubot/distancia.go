@@ -1,5 +1,4 @@
-//O distancia.go implementa a distância de Manhattan, fazendo a locomoção dos elementos
-//durante a partida.
+//O distancia.go implementa a distância de Manhattan, utilizada para a locomoção das ambulâncias.
 
 package main
 
