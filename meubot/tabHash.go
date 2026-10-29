@@ -1,12 +1,12 @@
 package main
 
-// Estrutura do nó
+// no guarda um chamado e o índice do próximo nó da msm caixa
 type no struct {
 	prox int // aponta pro prox no
 	chamado Chamado //
 }
 
-// Estrutura da tabela
+// Estrutura da tabela hash dos chamados abertos indexada pelo id
 type tabelaChamados struct {
 	chaves []int
 	nos []no
@@ -14,15 +14,15 @@ type tabelaChamados struct {
 	tamanho int
 }
 
-const tamanhoTabela = 1024
-const capacidadeNos = 2000   // pequeno só para testar
+const tamanhoTabela = 100003   // tamanhoTabela é o número de caixas
+const capacidadeNos = 1000000  // é o tamanho do pool de nós
 
-// func para descobrir posicao que o id cai (a primeira caixa)
+// posicao devolve a caixa em que o chamado de identificador id deve ficar
 func posicao(id int) int {
 	return id % tamanhoTabela
 }
 
-//cria a tabela vazia e liga todos os nos livres
+//cria a tabela vazia, todas as caixas vazias e todos os nós
 func novaTabela() *tabelaChamados {
 	t := &tabelaChamados{}
 	t.chaves = make([]int, tamanhoTabela)
@@ -42,20 +42,21 @@ func novaTabela() *tabelaChamados {
 	return t
 }
 
-// ponteiro para a struct de tabela / funçao inserir
+// guarda o chamado c na tabela, no início da fila da sua caixa
 func (t *tabelaChamados) Inserir(c Chamado) {
 	if t.livre == -1 {
 		return
 	}
-	n := t.livre 
-	t.livre = t.nos[n].prox 
+	n := t.livre // pega o primeiro nó livre
+	t.livre = t.nos[n].prox  // a fila de livres avança
 	caixa := posicao(c.ID)
 	t.nos[n].chamado = c
-	t.nos[n].prox =	t.chaves[caixa]
-	t.chaves[caixa] = n
+	t.nos[n].prox =	t.chaves[caixa] // a fila antiga fica pendurada no nó novo
+	t.chaves[caixa] = n // e a caixa passa a apontar para ele
 	t.tamanho++
 }
 
+// procura o chamado de identificador id
 func (t *tabelaChamados) Buscar(id int) (Chamado, bool) {
 	caixa := posicao(id)
 	n := t.chaves[caixa]
@@ -68,6 +69,7 @@ func (t *tabelaChamados) Buscar(id int) (Chamado, bool) {
 	return Chamado{}, false
 }
 
+// tira da tabela o chamado de identificador id e o devolve, para que quem chamou possa retira-lo também de outras estruturas
 func (t *tabelaChamados) Remover(id int) (Chamado, bool) {
 	caixa := posicao(id)
 	anterior := -1
