@@ -2,27 +2,27 @@ package main
 
 // no guarda um chamado e o índice do próximo nó da msm caixa
 type no struct {
-	prox int // aponta pro prox no
+	prox    int     // aponta pro prox no
 	chamado Chamado //
 }
 
 // Estrutura da tabela hash dos chamados abertos indexada pelo id
 type tabelaChamados struct {
-	chaves []int
-	nos []no
-	livre int
+	chaves  []int
+	nos     []no
+	livre   int
 	tamanho int
 }
 
-const tamanhoTabela = 100003   // tamanhoTabela é o número de caixas
-const capacidadeNos = 1000000  // é o tamanho do pool de nós
+const tamanhoTabela = 100003  // tamanhoTabela é o número de caixas
+const capacidadeNos = 1000000 // é o tamanho do pool de nós
 
 // posicao devolve a caixa em que o chamado de identificador id deve ficar
 func posicao(id int) int {
 	return id % tamanhoTabela
 }
 
-//cria a tabela vazia, todas as caixas vazias e todos os nós
+// cria a tabela vazia, todas as caixas vazias e todos os nós
 func novaTabela() *tabelaChamados {
 	t := &tabelaChamados{}
 	t.chaves = make([]int, tamanhoTabela)
@@ -36,7 +36,7 @@ func novaTabela() *tabelaChamados {
 		t.nos[i].prox = i + 1
 	}
 
-	t.nos[capacidadeNos - 1].prox = -1
+	t.nos[capacidadeNos-1].prox = -1
 	t.livre = 0
 	t.tamanho = 0
 	return t
@@ -47,12 +47,12 @@ func (t *tabelaChamados) Inserir(c Chamado) {
 	if t.livre == -1 {
 		return
 	}
-	n := t.livre // pega o primeiro nó livre
-	t.livre = t.nos[n].prox  // a fila de livres avança
+	n := t.livre            // pega o primeiro nó livre
+	t.livre = t.nos[n].prox // a fila de livres avança
 	caixa := posicao(c.ID)
 	t.nos[n].chamado = c
-	t.nos[n].prox =	t.chaves[caixa] // a fila antiga fica pendurada no nó novo
-	t.chaves[caixa] = n // e a caixa passa a apontar para ele
+	t.nos[n].prox = t.chaves[caixa] // a fila antiga fica pendurada no nó novo
+	t.chaves[caixa] = n             // e a caixa passa a apontar para ele
 	t.tamanho++
 }
 
@@ -61,7 +61,7 @@ func (t *tabelaChamados) Buscar(id int) (Chamado, bool) {
 	caixa := posicao(id)
 	n := t.chaves[caixa]
 	for n != -1 {
-		if t.nos[n].chamado.ID == id {    
+		if t.nos[n].chamado.ID == id {
 			return t.nos[n].chamado, true
 		}
 		n = t.nos[n].prox
@@ -79,12 +79,12 @@ func (t *tabelaChamados) Remover(id int) (Chamado, bool) {
 			c := t.nos[n].chamado
 
 			if anterior == -1 {
-				t.chaves[caixa] = t.nos[n].prox    
+				t.chaves[caixa] = t.nos[n].prox
 			} else {
-				t.nos[anterior].prox = t.nos[n].prox   
+				t.nos[anterior].prox = t.nos[n].prox
 			}
 
-			t.nos[n].prox = t.livre     
+			t.nos[n].prox = t.livre
 			t.livre = n
 			t.tamanho--
 			return c, true

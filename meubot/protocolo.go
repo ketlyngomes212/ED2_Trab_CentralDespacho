@@ -8,10 +8,13 @@ import (
 )
 
 var (
-	leitor    *bufio.Scanner
-	escritor  *bufio.Writer
-	hospitais []Hospital
-	chamados  []Chamado
+	leitor     *bufio.Scanner
+	escritor   *bufio.Writer
+	hospitais  []Hospital
+	tab        *tabelaChamados // chamados abertos por id
+	filaPrazos *heapPrazos     // prazos dos chamados abertos (o menor no topo)
+	alturaMapa int             // numero de linhas do mapa
+	indice     *indiceEspacial // chamados abertos por posição
 )
 
 // Lê uma linha do servidor e separa seu conteúdo em campos.
@@ -35,13 +38,14 @@ func inteiro(s string) int {
 	return v
 }
 
-// Lê as informações iniciais da partida.
-// Guarda os hospitais e consome os dados das ambulâncias e dos bloqueios.
+// lerInicio lê a mensagem inicial da partida. Guarda a altura do mapa e os
+// hospitais, e consome os dados das ambulâncias e dos bloqueios.
 // Na Etapa 1, os bloqueios não são usados na estratégia.
 func lerInicio() {
-	lerCampos() // INICIO
+	campos := lerCampos() // INICIO largura altura ...
+	alturaMapa = inteiro(campos[2])
 
-	campos := lerCampos() // HOSPITAIS quantidade
+	campos = lerCampos() // HOSPITAIS quantidade
 	quantidadeHospitais := inteiro(campos[1])
 
 	for i := 0; i < quantidadeHospitais; i++ {
@@ -72,34 +76,9 @@ func lerInicio() {
 	lerCampos() // FIM da mensagem inicial
 }
 
-// Remove da lista chamados já escolhidos
-func removerPorID(id int) {
-	for i := range chamados {
-		if chamados[i].ID == id {
-			ultimo := len(chamados) - 1
-			chamados[i] = chamados[ultimo]
-			chamados = chamados[:ultimo]
-			return
-		}
-	}
-}
-
-// Remove da lista chamados já expirados.
-func removerExpirados(turno int) {
-	vivos := chamados[:0]
-
-	for _, chamado := range chamados {
-		if chamado.Prazo >= turno {
-			vivos = append(vivos, chamado)
-		}
-	}
-
-	chamados = vivos
-}
-
-// Lê todas as informações de um turno.
-// Retorna o número do turno, a lista atual de ambulâncias e um indicador
-// que informa se foi possível ler um novo turno.
+// lerTurno lê a mensagem de um turno e atualiza as estruturas.
+// Devolve o número do turno, as ambulâncias da equipe e um indicador que
+// informa se foi possível ler um novo turno
 func lerTurno() (int, []Ambulancia, bool) {
 	campos := lerCampos() // TURNO número
 	if len(campos) < 2 {
@@ -108,7 +87,7 @@ func lerTurno() (int, []Ambulancia, bool) {
 
 	turno := inteiro(campos[1])
 
-	// Lê os novos chamados disponibilizados neste turno.
+	// Chamados novos: entram na tabela, no índice e no heap.
 	campos = lerCampos() // CHAMADOS quantidade
 	quantidadeChamados := inteiro(campos[1])
 
@@ -123,20 +102,26 @@ func lerTurno() (int, []Ambulancia, bool) {
 			Prazo: inteiro(campos[4]),
 		}
 
-		chamados = append(chamados, chamado)
+		tab.Inserir(chamado)
+		indice.Inserir(chamado)
+		filaPrazos.Inserir(chamado.Prazo, chamado.ID)
 	}
 
-	// Remove da lista os chamados que já foram recolhidos.
+	// A tabela devolve o chamado completo (com X e Y), e o índice precisa disso
+	// para saber em qual linha procurar.
 	campos = lerCampos() // RECOLHIDOS quantidade
 	quantidadeRecolhidos := inteiro(campos[1])
 
 	for i := 0; i < quantidadeRecolhidos; i++ {
 		campos = lerCampos()
 		id := inteiro(campos[0])
-		removerPorID(id)
+		c, ok := tab.Remover(id)
+		if ok {
+			indice.Remover(c)
+		}
 	}
 
-	// Lê a posição e o estado atual de cada ambulância.
+	// Posição e estado atual de cada ambulância da equipe.
 	campos = lerCampos() // AMBULANCIAS quantidade
 	quantidadeAmbulancias := inteiro(campos[1])
 
@@ -167,7 +152,11 @@ func lerTurno() (int, []Ambulancia, bool) {
 	lerCampos() // FIM da mensagem do turno
 
 	// Descarta chamados expirados antes de calcular os movimentos.
-	removerExpirados(turno)
+	expirar(turno, filaPrazos, tab, indice)
+
+	if indice.tamanho != tab.tamanho {
+		panic("índice e tabela fora de sincronia")
+	}
 
 	return turno, ambulancias, true
 }
@@ -181,7 +170,6 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 	for _, ambulancia := range ambulancias {
 		movimento, chamadoID := proximoMovimento(
 			ambulancia,
-			chamados,
 			hospitais,
 			atribuidos,
 			turno,
@@ -198,10 +186,16 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 	escritor.Flush()
 }
 
+// iniciar lê a mensagem inicial, cria as estruturas (já com toda a memória
+// reservada, para não alocar durante os turnos),
 // Inicializa o protocolo, informa que o bot está pronto e processa
 // os turnos até que o servidor encerre a comunicação.
 func iniciar() {
 	lerInicio()
+
+	tab = novaTabela()
+	indice = novoIndice(alturaMapa)
+	filaPrazos = &heapPrazos{itens: make([]item, 0, 1000000)}
 
 	fmt.Fprintln(escritor, "PRONTO")
 	escritor.Flush()
