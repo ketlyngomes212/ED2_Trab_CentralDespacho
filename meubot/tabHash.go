@@ -2,8 +2,9 @@ package main
 
 // no guarda um chamado e o índice do próximo nó da msm caixa
 type no struct {
-	prox    int     // aponta pro prox no
-	chamado Chamado //
+	prox     int // aponta pro prox no
+	posGrave int // caso o nó seja grave, guarda a posição dele na lista dos graves
+	chamado  Chamado
 }
 
 // Estrutura da tabela hash dos chamados abertos indexada pelo id
@@ -42,18 +43,47 @@ func novaTabela() *tabelaChamados {
 	return t
 }
 
-// guarda o chamado c na tabela, no início da fila da sua caixa
-func (t *tabelaChamados) Inserir(c Chamado) {
+// devolve o índice do nó e reserva
+func (t *tabelaChamados) Inserir(c Chamado) int {
 	if t.livre == -1 {
-		return
+		return -1
 	}
-	n := t.livre            // pega o primeiro nó livre
-	t.livre = t.nos[n].prox // a fila de livres avança
+
+	n := t.livre
+	t.livre = t.nos[n].prox
 	caixa := posicao(c.ID)
+	c.Dona = -1
 	t.nos[n].chamado = c
-	t.nos[n].prox = t.chaves[caixa] // a fila antiga fica pendurada no nó novo
-	t.chaves[caixa] = n             // e a caixa passa a apontar para ele
+	t.nos[n].prox = t.chaves[caixa]
+	t.chaves[caixa] = n
 	t.tamanho++
+
+	return n
+}
+
+// devolve o índice do nó do chamado de identificador id, ou -1 se não existir
+func (t *tabelaChamados) AcharNo(id int) int {
+	n := t.chaves[posicao(id)]
+
+	for n != -1 {
+		if t.nos[n].chamado.ID == id {
+			return n
+		}
+		n = t.nos[n].prox
+	}
+
+	return -1
+}
+
+// devolve um ponteiro para o chamado ou nil
+func (t *tabelaChamados) Achar(id int) *Chamado {
+	n := t.AcharNo(id)
+
+	if n == -1 {
+		return nil
+	}
+
+	return &t.nos[n].chamado
 }
 
 // procura o chamado de identificador id

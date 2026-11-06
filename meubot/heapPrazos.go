@@ -77,17 +77,33 @@ func (h *heapPrazos) RemoverTopo() (item, bool) {
 	return topo, true
 }
 
-// remove do heap e da tabela todos os chamados cujo prazo já passou
-func expirar(turno int, h *heapPrazos, tab *tabelaChamados, ind *indiceEspacial) {
+// remove o chamado de todas as estruturas (tabela, índice espacial ou lista de graves)
+func removerChamado(id int) {
+	n := tab.AcharNo(id)
+
+	if n == -1 {
+		return
+	}
+
+	c := tab.nos[n].chamado
+	if ehGrave(c) {
+		graves.Remover(n)
+	} else {
+		indice.Remover(c)
+	}
+	tab.Remover(id)
+}
+
+// remove chamados com prazo expirado
+func expirar(turno int, h *heapPrazos) {
 	for {
 		topo, ok := h.Topo()
 		if !ok || topo.prazo >= turno {
 			break
 		}
+
 		h.RemoverTopo()
-		c, achou := tab.Remover(topo.id)
-		if achou {
-			ind.Remover(c)
-		}
+
+		removerChamado(topo.id)
 	}
 }

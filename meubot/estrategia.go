@@ -1,45 +1,29 @@
-//O estrategia.go determina de que maneira uma ambulância deve agir ao longo da partida.
-
 package main
 
-// chamadoOcupado verifica se determinado chamado já foi escolhido por outra ambulância no turno
-func chamadoOcupado(ids []int, id int) bool {
-	for _, atual := range ids {
-		if atual == id {
-			return true
-		}
+import "time"
+
+// alvos[i] é o id do chamado para o qual a ambulância i está indo (0 = nenhum).
+// O compromisso evita que a ambulância troque de alvo a cada turno.
+var alvos []int
+
+// Rede de segurança contra o teto de 100 ms por turno: se as buscas já gastaram
+// este tempo, as ambulâncias que faltam só mantêm o alvo que já tinham.
+const tempoMaximoBusca = 55 * time.Millisecond
+
+// instante em que o turno atual começou a ser processado
+var inicioTurno time.Time
+
+// libera a reserva do alvo da ambulância
+func liberarAlvo(amb int) {
+	id := alvos[amb]
+	if id == 0 {
+		return
 	}
-	return false
-}
-
-// escolherChamado seleciona o chamado mais próximo
-// o vetor de atribuidos garante que uma ambulância não siga para um chamado já escolhido por outra
-func escolherChamado(ambulancia Ambulancia, chamados []Chamado, atribuidos []int,
-	turno int) (Chamado, bool) {
-
-	var escolhido Chamado
-	encontrou := false
-	menorDistancia := 0
-
-	for _, chamado := range chamados {
-		if chamadoOcupado(atribuidos, chamado.ID) { //se o chamado já foi escolhido, continua
-			continue
-		}
-
-		dist := calculaDistancia(ambulancia.X, ambulancia.Y, chamado.X, chamado.Y)
-		if turno+dist > chamado.Prazo { //se não vai dar tempo de chegar, continua
-			continue
-		}
-
-		if !encontrou || dist < menorDistancia ||
-			(dist == menorDistancia && chamado.Valor > escolhido.Valor) {
-			escolhido = chamado
-			encontrou = true
-			menorDistancia = dist
-		}
+	c := tab.Achar(id)
+	if c != nil && c.Dona == amb {
+		c.Dona = -1
 	}
-
-	return escolhido, encontrou
+	alvos[amb] = 0
 }
 
 // escolherHospital seleciona o hospital mais próximo
@@ -50,42 +34,70 @@ func escolherHospital(ambulancia Ambulancia, hospitais []Hospital) (Hospital, bo
 
 	for _, hospital := range hospitais {
 		dist := calculaDistancia(ambulancia.X, ambulancia.Y, hospital.X, hospital.Y)
-
 		if !encontrou || dist < menorDistancia {
 			escolhido = hospital
 			encontrou = true
 			menorDistancia = dist
 		}
 	}
-
 	return escolhido, encontrou
 }
 
-// proximoMovimento define para onde a ambulância vai
-func proximoMovimento(ambulancia Ambulancia, hospitais []Hospital,
-	atribuidos []int, turno int) (string, int) {
-
-	//Ambulância livre vai para o chamado mais próximo
-	if ambulancia.Livre {
-		chamado, encontrou := indice.buscarMelhor(ambulancia.X, ambulancia.Y, turno, atribuidos, tab)
-
-		if !encontrou {
-			return "P", -1
+// distância do ponto (x, y) ao hospital mais próximo
+func distanciaHospital(x, y int) int {
+	menor := 1 << 30
+	for _, h := range hospitais {
+		d := calculaDistancia(x, y, h.X, h.Y)
+		if d < menor {
+			menor = d
 		}
+	}
+	return menor
+}
 
-		movimento := direcao(ambulancia.X, ambulancia.Y, chamado.X, chamado.Y)
-
-		return movimento, chamado.ID
+// proximoMovimento define para onde a ambulância vai
+func proximoMovimento(ambulancia Ambulancia, turno int) string {
+	for ambulancia.ID >= len(alvos) { // proteção: id fora do esperado (0 a k-1)
+		alvos = append(alvos, 0)
 	}
 
-	//Ambulância ocupada vai para o hospital mais próximo
-	hospital, encontrou := escolherHospital(ambulancia, hospitais)
-
-	if !encontrou {
-		return "P", -1
+	// Ambulância ocupada vai para o hospital mais próximo
+	if !ambulancia.Livre {
+		liberarAlvo(ambulancia.ID)
+		hospital, encontrou := escolherHospital(ambulancia, hospitais)
+		if !encontrou {
+			return "P"
+		}
+		return direcao(ambulancia.X, ambulancia.Y, hospital.X, hospital.Y)
 	}
 
-	movimento := direcao(ambulancia.X, ambulancia.Y, hospital.X, hospital.Y)
+	// Ambulância livre vai para o chamado de maior taxa valor/tempo
+	b := Busca{ax: ambulancia.X, ay: ambulancia.Y, turno: turno, amb: ambulancia.ID}
 
-	return movimento, -1
+	// O alvo atual (se ainda existir) entra primeiro, com bônus de histerese
+	if alvos[ambulancia.ID] != 0 {
+		atual := tab.Achar(alvos[ambulancia.ID])
+		if atual != nil {
+			b.atual = atual.ID
+			b.avaliar(atual)
+		}
+	}
+
+	if time.Since(inicioTurno) < tempoMaximoBusca {
+		b.buscarGraves(graves)
+		indice.buscarComuns(&b)
+	}
+
+	if b.melhor == nil {
+		liberarAlvo(ambulancia.ID)
+		return "P"
+	}
+
+	if b.melhor.ID != alvos[ambulancia.ID] {
+		liberarAlvo(ambulancia.ID)
+		b.melhor.Dona = ambulancia.ID
+		alvos[ambulancia.ID] = b.melhor.ID
+	}
+
+	return direcao(ambulancia.X, ambulancia.Y, b.melhor.X, b.melhor.Y)
 }

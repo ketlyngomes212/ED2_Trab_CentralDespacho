@@ -3,11 +3,20 @@
 package main
 
 type Chamado struct {
-	ID    int
-	X     int
-	Y     int
-	Valor int
-	Prazo int
+	ID           int
+	X            int
+	Y            int
+	Prazo        int
+	Valor        int
+	DistHospital int
+	Dona         int
+}
+
+//ehGrave verifica se um chamado é grave
+const MinGrave = 40
+
+func ehGrave(c Chamado) bool {
+	return c.Valor >= MinGrave
 }
 
 type Ambulancia struct {

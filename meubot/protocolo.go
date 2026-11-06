@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
-	leitor     *bufio.Scanner
-	escritor   *bufio.Writer
-	hospitais  []Hospital
-	tab        *tabelaChamados // chamados abertos por id
-	filaPrazos *heapPrazos     // prazos dos chamados abertos (o menor no topo)
-	alturaMapa int             // numero de linhas do mapa
-	indice     *indiceEspacial // chamados abertos por posição
+	leitor         *bufio.Scanner
+	escritor       *bufio.Writer
+	hospitais      []Hospital
+	tab            *tabelaChamados // chamados abertos por id
+	filaPrazos     *heapPrazos     // prazos dos chamados abertos (o menor no topo)
+	alturaMapa     int             // numero de linhas do mapa
+	larguraMapa    int             // numero de colunas do mapa
+	totalTurnos    int             // numero de turnos da partida
+	indice         *indiceEspacial // chamados comuns abertos por posição
+	graves         *ListaGraves    // chamados graves abertos
+	numAmbulancias int             // ambulâncias da nossa equipe
 )
 
 // Lê uma linha do servidor e separa seu conteúdo em campos.
@@ -42,8 +47,10 @@ func inteiro(s string) int {
 // hospitais, e consome os dados das ambulâncias e dos bloqueios.
 // Na Etapa 1, os bloqueios não são usados na estratégia.
 func lerInicio() {
-	campos := lerCampos() // INICIO largura altura ...
+	campos := lerCampos() // INICIO largura altura turnos ...
+	larguraMapa = inteiro(campos[1])
 	alturaMapa = inteiro(campos[2])
+	totalTurnos = inteiro(campos[3])
 
 	campos = lerCampos() // HOSPITAIS quantidade
 	quantidadeHospitais := inteiro(campos[1])
@@ -61,6 +68,7 @@ func lerInicio() {
 
 	campos = lerCampos() // AMBULANCIAS quantidade
 	quantidadeAmbulancias := inteiro(campos[1])
+	numAmbulancias = quantidadeAmbulancias
 
 	for i := 0; i < quantidadeAmbulancias; i++ {
 		lerCampos() // ID e coordenadas iniciais da ambulância
@@ -85,6 +93,7 @@ func lerTurno() (int, []Ambulancia, bool) {
 		return 0, nil, false
 	}
 
+	inicioTurno = time.Now()
 	turno := inteiro(campos[1])
 
 	// Chamados novos: entram na tabela, no índice e no heap.
@@ -102,8 +111,18 @@ func lerTurno() (int, []Ambulancia, bool) {
 			Prazo: inteiro(campos[4]),
 		}
 
-		tab.Inserir(chamado)
-		indice.Inserir(chamado)
+		chamado.DistHospital = distanciaHospital(chamado.X, chamado.Y)
+
+		n := tab.Inserir(chamado)
+		if n == -1 {
+			continue // pool cheio (não deve acontecer)
+		}
+		if ehGrave(chamado) {
+			graves.Inserir(n)
+		} else {
+			indice.Inserir(chamado)
+		}
+
 		filaPrazos.Inserir(chamado.Prazo, chamado.ID)
 	}
 
@@ -114,11 +133,7 @@ func lerTurno() (int, []Ambulancia, bool) {
 
 	for i := 0; i < quantidadeRecolhidos; i++ {
 		campos = lerCampos()
-		id := inteiro(campos[0])
-		c, ok := tab.Remover(id)
-		if ok {
-			indice.Remover(c)
-		}
+		removerChamado(inteiro(campos[0]))
 	}
 
 	// Posição e estado atual de cada ambulância da equipe.
@@ -152,11 +167,7 @@ func lerTurno() (int, []Ambulancia, bool) {
 	lerCampos() // FIM da mensagem do turno
 
 	// Descarta chamados expirados antes de calcular os movimentos.
-	expirar(turno, filaPrazos, tab, indice)
-
-	if indice.tamanho != tab.tamanho {
-		panic("índice e tabela fora de sincronia")
-	}
+	expirar(turno, filaPrazos)
 
 	return turno, ambulancias, true
 }
@@ -165,20 +176,8 @@ func lerTurno() (int, []Ambulancia, bool) {
 // A lista atribuidos impede que duas ambulâncias escolham o mesmo
 // chamado durante este turno.
 func jogarTurno(turno int, ambulancias []Ambulancia) {
-	atribuidos := make([]int, 0, len(ambulancias))
-
 	for _, ambulancia := range ambulancias {
-		movimento, chamadoID := proximoMovimento(
-			ambulancia,
-			hospitais,
-			atribuidos,
-			turno,
-		)
-
-		if chamadoID != -1 {
-			atribuidos = append(atribuidos, chamadoID)
-		}
-
+		movimento := proximoMovimento(ambulancia, turno)
 		fmt.Fprintln(escritor, ambulancia.ID, movimento)
 	}
 
@@ -194,7 +193,9 @@ func iniciar() {
 	lerInicio()
 
 	tab = novaTabela()
-	indice = novoIndice(alturaMapa)
+	indice = novoIndice(alturaMapa, larguraMapa)
+	graves = novaLista()
+	alvos = make([]int, numAmbulancias)
 	filaPrazos = &heapPrazos{itens: make([]item, 0, 1000000)}
 
 	fmt.Fprintln(escritor, "PRONTO")

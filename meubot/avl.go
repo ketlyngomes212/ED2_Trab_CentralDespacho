@@ -170,3 +170,19 @@ func antecessorOuIgual(a *noAvl, k int) (int, bool) {
 	}
 	return melhor, achou
 }
+
+// visita todas as chaves de a que estão em [kmin, kmax] em ordem crescente
+func percorrerIntervalo(a *noAvl, kmin, kmax int, visitar func(int)) {
+	if a == nil {
+		return
+	}
+	if a.chave > kmin {
+		percorrerIntervalo(a.esquerda, kmin, kmax, visitar)
+	}
+	if a.chave >= kmin && a.chave <= kmax {
+		visitar(a.chave)
+	}
+	if a.chave < kmax {
+		percorrerIntervalo(a.direita, kmin, kmax, visitar)
+	}
+}
