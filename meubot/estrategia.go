@@ -9,6 +9,7 @@ var alvos []int
 // Rede de segurança contra o teto de 100 ms por turno: se as buscas já gastaram
 // este tempo, as ambulâncias que faltam só mantêm o alvo que já tinham.
 const tempoMaximoBusca = 55 * time.Millisecond
+var tempoGraves, tempoComuns time.Duration
 
 // instante em que o turno atual começou a ser processado
 var inicioTurno time.Time
@@ -84,8 +85,12 @@ func proximoMovimento(ambulancia Ambulancia, turno int) string {
 	}
 
 	if time.Since(inicioTurno) < tempoMaximoBusca {
+		t0 := time.Now()
 		b.buscarGraves(graves)
+		t1 := time.Now()
 		indice.buscarComuns(&b)
+		tempoGraves += t1.Sub(t0)
+		tempoComuns += time.Since(t1)
 	}
 
 	if b.melhor == nil {

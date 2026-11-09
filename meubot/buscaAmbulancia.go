@@ -21,6 +21,7 @@ const (
 	orcamentoVisitas = 600  // máx. de comuns avaliados por ambulância/turno, depois de achar algum
 	orcamentoMaximo  = 3000 // máx. de comuns avaliados por ambulância/turno, mesmo sem achar nenhum
 	raioInicial      = 16
+	raioMaximo = 1 << 30 
 )
 
 // estado de uma busca de alvo para UMA ambulância
@@ -57,9 +58,27 @@ func (b *Busca) avaliar(c *Chamado) {
 }
 
 // avalia todos os graves abertos
+// avalia os graves abertos, pulando antes de qualquer conta cara os que não
+// podem ganhar do melhor atual
 func (b *Busca) buscarGraves(l *ListaGraves) {
-	for _, n := range l.nos {
-		b.avaliar(&tab.nos[n].chamado)
+	for i := range l.itens {
+		g := &l.itens[i]
+		dx := g.x - b.ax
+		if dx < 0 {
+			dx = -dx
+		}
+		dy := g.y - b.ay
+		if dy < 0 {
+			dy = -dy
+		}
+		d := dx + dy
+		if d > raioMaximo || b.turno+d > g.prazo {
+			continue // longe demais, ou não dá tempo de chegar
+		}
+		if b.melhor != nil && float64(g.valor) <= b.taxa*float64(d+1) {
+			continue // nem com o hospital colado ganharia do melhor atual
+		}
+		b.avaliar(&tab.nos[g.no].chamado)
 	}
 }
 
@@ -139,6 +158,9 @@ func (e *indiceEspacial) buscarComuns(b *Busca) {
 		}
 		if b.turno+raio >= totalTurnos {
 			return // mais longe que isso não dá tempo nem de chegar antes do fim
+		}
+		if raio >= raioMaximo {
+			return
 		}
 		raioAnt = raio
 	}

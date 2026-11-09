@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 )
 
 var (
@@ -204,9 +205,11 @@ func iniciar() {
 	for {
 		turno, ambulancias, ok := lerTurno()
 		if !ok {
-			return
+			break
 		}
 
 		jogarTurno(turno, ambulancias)
 	}
+
+	os.WriteFile("diagnostico.txt", []byte(fmt.Sprintf("graves=%v comuns=%v\n", tempoGraves,tempoComuns)), 0644)
 }

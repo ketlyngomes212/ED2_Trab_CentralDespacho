@@ -1,27 +1,37 @@
 package main
 
-//graves.go trata da lista de chamados graves que estão em aberto
+// graves.go: lista dos chamados graves abertos. Além do índice do nó na tabela,
+// guarda uma cópia dos campos que a busca usa para podar, para varrer a lista
+// sem ir à tabela hash a cada grave.
+
+type grave struct {
+	no    int // índice do nó do chamado na tabela
+	x, y  int
+	valor int
+	prazo int
+}
 
 type ListaGraves struct {
-	nos []int
+	itens []grave
 }
 
 func novaLista() *ListaGraves {
-	return &ListaGraves{nos: make([]int, 0, 65536)}
+	return &ListaGraves{itens: make([]grave, 0, 65536)}
 }
 
-//registra o nó como um chamado grave
+// Inserir registra o nó n como um chamado grave.
 func (l *ListaGraves) Inserir(n int) {
-	tab.nos[n].posGrave = len(l.nos)
-	l.nos = append(l.nos, n)
+	c := tab.nos[n].chamado
+	tab.nos[n].posGrave = len(l.itens)
+	l.itens = append(l.itens, grave{no: n, x: c.X, y: c.Y, valor: c.Valor, prazo: c.Prazo})
 }
 
-//tira o nó da lista e troca ele pelo último
+// Remover tira o nó da lista, trocando-o pelo último.
 func (l *ListaGraves) Remover(n int) {
 	pos := tab.nos[n].posGrave
-	ultimo := len(l.nos) - 1
-	mudou := l.nos[ultimo]
-	l.nos[pos] = mudou
-	tab.nos[mudou].posGrave = pos
-	l.nos = l.nos[:ultimo]
+	ultimo := len(l.itens) - 1
+	mudou := l.itens[ultimo]
+	l.itens[pos] = mudou
+	tab.nos[mudou.no].posGrave = pos
+	l.itens = l.itens[:ultimo]
 }
