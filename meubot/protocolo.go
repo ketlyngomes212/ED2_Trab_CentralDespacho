@@ -5,199 +5,152 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
-	"os"
 )
 
 var (
-	leitor         *bufio.Scanner
-	escritor       *bufio.Writer
-	hospitais      []Hospital
-	tab            *tabelaChamados // chamados abertos por id
-	filaPrazos     *heapPrazos     // prazos dos chamados abertos (o menor no topo)
-	alturaMapa     int             // numero de linhas do mapa
-	larguraMapa    int             // numero de colunas do mapa
-	totalTurnos    int             // numero de turnos da partida
-	indice         *indiceEspacial // chamados comuns abertos por posição
-	graves         *ListaGraves    // chamados graves abertos
-	numAmbulancias int             // ambulâncias da nossa equipe
+	leitor      *bufio.Scanner
+	escritor    *bufio.Writer
+	hospitais   []Hospital
+	tab         *tabelaChamados // chamados abertos por id
+	filaPrazos  *heapPrazos     // prazos dos chamados abertos (o menor no topo)
+	alturaMapa  int             // número de linhas do mapa
+	indice      *indiceEspacial // chamados comuns abertos por posição
+	buffAtribui []int           // reaproveitado a cada turno
 )
 
-// Lê uma linha do servidor e separa seu conteúdo em campos.
-// Retorna nil quando não há mais entrada disponível.
+// lerCampos lê uma linha e separa em campos; nil quando acaba a entrada.
 func lerCampos() []string {
 	if !leitor.Scan() {
 		return nil
 	}
-
 	return strings.Fields(leitor.Text())
 }
 
-// Converte um campo de texto em inteiro.
-// Se a conversão falhar, interrompe a execução com uma mensagem de erro.
 func inteiro(s string) int {
 	v, err := strconv.Atoi(s)
 	if err != nil {
 		panic("numero invalido na entrada: " + s)
 	}
-
 	return v
 }
 
-// lerInicio lê a mensagem inicial da partida. Guarda a altura do mapa e os
-// hospitais, e consome os dados das ambulâncias e dos bloqueios.
-// Na Etapa 1, os bloqueios não são usados na estratégia.
+// lerInicio lê a mensagem inicial: guarda a altura e os hospitais e consome
+// ambulâncias e bloqueios (etapa 1 não usa bloqueios).
 func lerInicio() {
-	campos := lerCampos() // INICIO largura altura turnos ...
-	larguraMapa = inteiro(campos[1])
+	campos := lerCampos() // INICIO largura altura turnos limite_turno limite_preparo equipe num_equipes
 	alturaMapa = inteiro(campos[2])
-	totalTurnos = inteiro(campos[3])
 
 	campos = lerCampos() // HOSPITAIS quantidade
-	quantidadeHospitais := inteiro(campos[1])
-
-	for i := 0; i < quantidadeHospitais; i++ {
+	qtdHospitais := inteiro(campos[1])
+	for i := 0; i < qtdHospitais; i++ {
 		campos = lerCampos()
-
-		hospital := Hospital{
-			X: inteiro(campos[0]),
-			Y: inteiro(campos[1]),
-		}
-
-		hospitais = append(hospitais, hospital)
+		hospitais = append(hospitais, Hospital{X: inteiro(campos[0]), Y: inteiro(campos[1])})
 	}
 
 	campos = lerCampos() // AMBULANCIAS quantidade
-	quantidadeAmbulancias := inteiro(campos[1])
-	numAmbulancias = quantidadeAmbulancias
-
-	for i := 0; i < quantidadeAmbulancias; i++ {
-		lerCampos() // ID e coordenadas iniciais da ambulância
+	qtdAmb := inteiro(campos[1])
+	for i := 0; i < qtdAmb; i++ {
+		lerCampos()
 	}
 
 	campos = lerCampos() // BLOQUEIOS quantidade
-	quantidadeBloqueios := inteiro(campos[1])
-
-	for i := 0; i < quantidadeBloqueios; i++ {
-		lerCampos() // Coordenadas do bloqueio
+	qtdBloq := inteiro(campos[1])
+	for i := 0; i < qtdBloq; i++ {
+		lerCampos()
 	}
 
-	lerCampos() // FIM da mensagem inicial
+	lerCampos() // FIM
 }
 
 // lerTurno lê a mensagem de um turno e atualiza as estruturas.
-// Devolve o número do turno, as ambulâncias da equipe e um indicador que
-// informa se foi possível ler um novo turno
+// Devolve o turno, as ambulâncias da equipe e se foi possível ler.
 func lerTurno() (int, []Ambulancia, bool) {
 	campos := lerCampos() // TURNO número
 	if len(campos) < 2 {
 		return 0, nil, false
 	}
-
-	inicioTurno = time.Now()
 	turno := inteiro(campos[1])
 
-	// Chamados novos: entram na tabela, no índice e no heap.
 	campos = lerCampos() // CHAMADOS quantidade
-	quantidadeChamados := inteiro(campos[1])
-
-	for i := 0; i < quantidadeChamados; i++ {
+	qtdChamados := inteiro(campos[1])
+	for i := 0; i < qtdChamados; i++ {
 		campos = lerCampos()
-
-		chamado := Chamado{
+		c := Chamado{
 			ID:    inteiro(campos[0]),
 			X:     inteiro(campos[1]),
 			Y:     inteiro(campos[2]),
 			Valor: inteiro(campos[3]),
 			Prazo: inteiro(campos[4]),
 		}
-
-		chamado.DistHospital = distanciaHospital(chamado.X, chamado.Y)
-
-		n := tab.Inserir(chamado)
-		if n == -1 {
-			continue // pool cheio (não deve acontecer)
+		if tab.Inserir(c) {
+			inserirNoIndice(c)
+			filaPrazos.Inserir(c.Prazo, c.ID)
 		}
-		if ehGrave(chamado) {
-			graves.Inserir(n)
-		} else {
-			indice.Inserir(chamado)
-		}
-
-		filaPrazos.Inserir(chamado.Prazo, chamado.ID)
 	}
 
-	// A tabela devolve o chamado completo (com X e Y), e o índice precisa disso
-	// para saber em qual linha procurar.
 	campos = lerCampos() // RECOLHIDOS quantidade
-	quantidadeRecolhidos := inteiro(campos[1])
-
-	for i := 0; i < quantidadeRecolhidos; i++ {
+	qtdRecolhidos := inteiro(campos[1])
+	for i := 0; i < qtdRecolhidos; i++ {
 		campos = lerCampos()
-		removerChamado(inteiro(campos[0]))
+		c, ok := tab.Remover(inteiro(campos[0]))
+		if ok {
+			removerDoIndice(c)
+		}
 	}
 
-	// Posição e estado atual de cada ambulância da equipe.
 	campos = lerCampos() // AMBULANCIAS quantidade
-	quantidadeAmbulancias := inteiro(campos[1])
-
-	ambulancias := make([]Ambulancia, 0, quantidadeAmbulancias)
-
-	for i := 0; i < quantidadeAmbulancias; i++ {
+	qtdAmb := inteiro(campos[1])
+	ambulancias := make([]Ambulancia, 0, qtdAmb)
+	for i := 0; i < qtdAmb; i++ {
 		campos = lerCampos()
-
-		ambulancia := Ambulancia{
+		ambulancias = append(ambulancias, Ambulancia{
 			ID:    inteiro(campos[0]),
 			X:     inteiro(campos[1]),
 			Y:     inteiro(campos[2]),
 			Livre: campos[3] == "LIVRE",
-		}
-
-		ambulancias = append(ambulancias, ambulancia)
+		})
 	}
 
-	// Consome os dados do placar. Eles não são necessários para
-	// escolher os movimentos nesta versão do bot.
 	campos = lerCampos() // PLACAR quantidade
-	quantidadeEquipes := inteiro(campos[1])
-
-	for i := 0; i < quantidadeEquipes; i++ {
+	qtdEquipes := inteiro(campos[1])
+	for i := 0; i < qtdEquipes; i++ {
 		lerCampos()
 	}
 
-	lerCampos() // FIM da mensagem do turno
+	lerCampos() // FIM
 
-	// Descarta chamados expirados antes de calcular os movimentos.
-	expirar(turno, filaPrazos)
-
+	expirar(turno, filaPrazos, tab)
 	return turno, ambulancias, true
 }
 
-// Envia uma decisão para cada ambulância e termina a resposta com FIM.
-// A lista atribuidos impede que duas ambulâncias escolham o mesmo
-// chamado durante este turno.
+// jogarTurno envia um movimento por ambulância e termina com FIM.
+// atribuidos impede duas ambulâncias da equipe de irem ao mesmo chamado.
 func jogarTurno(turno int, ambulancias []Ambulancia) {
-	for _, ambulancia := range ambulancias {
-		movimento := proximoMovimento(ambulancia, turno)
-		fmt.Fprintln(escritor, ambulancia.ID, movimento)
+	atribuidos := buffAtribui[:0]
+
+	for _, a := range ambulancias {
+		mov, id := proximoMovimento(a, hospitais, atribuidos, turno)
+		if id != -1 {
+			atribuidos = append(atribuidos, id)
+		}
+		fmt.Fprintln(escritor, a.ID, mov)
 	}
+	buffAtribui = atribuidos
 
 	fmt.Fprintln(escritor, "FIM")
 	escritor.Flush()
 }
 
-// iniciar lê a mensagem inicial, cria as estruturas (já com toda a memória
-// reservada, para não alocar durante os turnos),
-// Inicializa o protocolo, informa que o bot está pronto e processa
-// os turnos até que o servidor encerre a comunicação.
+// iniciar lê a mensagem inicial, cria as estruturas (memória já reservada),
+// avisa PRONTO e processa os turnos até o servidor fechar a entrada.
 func iniciar() {
 	lerInicio()
 
 	tab = novaTabela()
-	indice = novoIndice(alturaMapa, larguraMapa)
-	graves = novaLista()
-	alvos = make([]int, numAmbulancias)
+	indice = novoIndice(alturaMapa)
+	indiceGrave = novoIndice(alturaMapa)
 	filaPrazos = &heapPrazos{itens: make([]item, 0, 1000000)}
+	buffAtribui = make([]int, 0, 256)
 
 	fmt.Fprintln(escritor, "PRONTO")
 	escritor.Flush()
@@ -205,11 +158,8 @@ func iniciar() {
 	for {
 		turno, ambulancias, ok := lerTurno()
 		if !ok {
-			break
+			return
 		}
-
 		jogarTurno(turno, ambulancias)
 	}
-
-	os.WriteFile("diagnostico.txt", []byte(fmt.Sprintf("graves=%v comuns=%v\n", tempoGraves,tempoComuns)), 0644)
 }

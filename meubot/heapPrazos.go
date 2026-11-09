@@ -1,6 +1,6 @@
 package main
 
-// fila de prioridade ordenado pelo prazo dos chamados
+// Fila de prioridade (heap mínimo) ordenada pelo prazo dos chamados.
 
 type item struct {
 	prazo int
@@ -11,19 +11,10 @@ type heapPrazos struct {
 	itens []item
 }
 
-func pai(i int) int {
-	return (i - 1) / 2
-}
+func pai(i int) int { return (i - 1) / 2 }
+func esq(i int) int { return 2*i + 1 }
+func dir(i int) int { return 2*i + 2 }
 
-func esq(i int) int {
-	return (2 * i) + 1
-}
-
-func dir(i int) int {
-	return (2 * i) + 2
-}
-
-// o item da posição i troca de lugar com o pai enquanto tiver prazo menor que ele
 func (h *heapPrazos) subir(i int) {
 	for i > 0 && h.itens[i].prazo < h.itens[pai(i)].prazo {
 		h.itens[i], h.itens[pai(i)] = h.itens[pai(i)], h.itens[i]
@@ -31,7 +22,6 @@ func (h *heapPrazos) subir(i int) {
 	}
 }
 
-// o item da posição i troca de lugar com o menor dos filhos enquanto tiver prazo maior que ele.
 func (h *heapPrazos) descer(i int) {
 	n := len(h.itens)
 	for esq(i) < n {
@@ -47,24 +37,21 @@ func (h *heapPrazos) descer(i int) {
 	}
 }
 
-// Inserir acrescenta um item no fim do vetor e o faz subir até o lugar certo
+// Inserir acrescenta um item no fim e o faz subir até o lugar certo.
 func (h *heapPrazos) Inserir(prazo, id int) {
-	prazoN := prazo
-	idN := id
-	h.itens = append(h.itens, item{prazo: prazoN, id: idN})
+	h.itens = append(h.itens, item{prazo: prazo, id: id})
 	h.subir(len(h.itens) - 1)
 }
 
-// devolve o item de menor prazo sem remover
+// Topo devolve o item de menor prazo sem remover.
 func (h *heapPrazos) Topo() (item, bool) {
 	if len(h.itens) == 0 {
 		return item{}, false
 	}
-
 	return h.itens[0], true
 }
 
-// remove e devolve o item de menor prazo
+// RemoverTopo remove e devolve o item de menor prazo.
 func (h *heapPrazos) RemoverTopo() (item, bool) {
 	if len(h.itens) == 0 {
 		return item{}, false
@@ -77,33 +64,17 @@ func (h *heapPrazos) RemoverTopo() (item, bool) {
 	return topo, true
 }
 
-// remove o chamado de todas as estruturas (tabela, índice espacial ou lista de graves)
-func removerChamado(id int) {
-	n := tab.AcharNo(id)
-
-	if n == -1 {
-		return
-	}
-
-	c := tab.nos[n].chamado
-	if ehGrave(c) {
-		graves.Remover(n)
-	} else {
-		indice.Remover(c)
-	}
-	tab.Remover(id)
-}
-
-// remove chamados com prazo expirado
-func expirar(turno int, h *heapPrazos) {
+// expirar remove da tabela e dos índices todos os chamados cujo prazo já passou.
+func expirar(turno int, h *heapPrazos, tab *tabelaChamados) {
 	for {
 		topo, ok := h.Topo()
 		if !ok || topo.prazo >= turno {
 			break
 		}
-
 		h.RemoverTopo()
-
-		removerChamado(topo.id)
+		c, achou := tab.Remover(topo.id)
+		if achou {
+			removerDoIndice(c)
+		}
 	}
 }
