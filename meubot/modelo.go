@@ -8,8 +8,6 @@ type Chamado struct {
 	Y            int
 	Prazo        int
 	Valor        int
-	DistHospital int
-	Dona         int
 }
 
 //ehGrave verifica se um chamado é grave
