@@ -1,188 +1,151 @@
 package main
 
+// AVL de inteiros (chaves únicas). Cada linha do mapa tem a sua.
+
 type noAvl struct {
-	chave    int // número guardado no nó (x*deslocamento + id >> ver chaveAVL.go)
-	alt      int // altura da subárvore
-	esquerda *noAvl
-	direita  *noAvl
+	chave int
+	alt   int
+	esq   *noAvl
+	dir   *noAvl
 }
 
-// maior devolve o maior entre dois inteiros.
-func maior(x, y int) int {
-	if x > y {
-		return x
+func alturaNo(n *noAvl) int {
+	if n == nil {
+		return 0
 	}
+	return n.alt
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func atualizar(n *noAvl) {
+	n.alt = 1 + maxInt(alturaNo(n.esq), alturaNo(n.dir))
+}
+
+func fatorBalanceamento(n *noAvl) int {
+	return alturaNo(n.esq) - alturaNo(n.dir)
+}
+
+func rotacaoDireita(y *noAvl) *noAvl {
+	x := y.esq
+	y.esq = x.dir
+	x.dir = y
+	atualizar(y)
+	atualizar(x)
+	return x
+}
+
+func rotacaoEsquerda(x *noAvl) *noAvl {
+	y := x.dir
+	x.dir = y.esq
+	y.esq = x
+	atualizar(x)
+	atualizar(y)
 	return y
 }
 
-// devolve a altura guardada no nó
-func alturaAVL(a *noAvl) int {
-	if a == nil {
-		return -1
-	}
-	return a.alt
-
-}
-
-// recalcula a altura de a a partir da altura dos filhos
-func atualizarAltura(a *noAvl) {
-	a.alt = 1 + maior(alturaAVL(a.direita), alturaAVL(a.esquerda))
-}
-
-// é o fator de balanceamento (altura da esquerda menos altura da direita)
-func fator(a *noAvl) int {
-	if a == nil {
-		return 0
-	}
-
-	return alturaAVL(a.esquerda) - alturaAVL(a.direita)
-}
-
-// rotações para o balanceamento
-func rotacaoDireita(a *noAvl) *noAvl {
-	b := a.esquerda
-	a.esquerda = b.direita
-	b.direita = a
-
-	atualizarAltura(a)
-	atualizarAltura(b)
-	return b
-}
-
-func rotacaoEsquerda(a *noAvl) *noAvl {
-	b := a.direita
-	a.direita = b.esquerda
-	b.esquerda = a
-
-	atualizarAltura(a)
-	atualizarAltura(b)
-	return b
-}
-
-// rebalancear a arvore para corrrigir o fator
-func rebalancear(a *noAvl) *noAvl {
-	f := fator(a)
-
-	if f > 1 {
-		if fator(a.esquerda) < 0 {
-			a.esquerda = rotacaoEsquerda(a.esquerda)
+func balancear(n *noAvl) *noAvl {
+	atualizar(n)
+	fb := fatorBalanceamento(n)
+	if fb > 1 {
+		if fatorBalanceamento(n.esq) < 0 {
+			n.esq = rotacaoEsquerda(n.esq)
 		}
-		return rotacaoDireita(a)
+		return rotacaoDireita(n)
 	}
-
-	if f < -1 {
-		if fator(a.direita) > 0 {
-			a.direita = rotacaoDireita(a.direita)
+	if fb < -1 {
+		if fatorBalanceamento(n.dir) > 0 {
+			n.dir = rotacaoDireita(n.dir)
 		}
-		return rotacaoEsquerda(a)
+		return rotacaoEsquerda(n)
 	}
-
-	return a
+	return n
 }
 
-// coloca a chave k na árvore de raiz a e devolve a nova raiz
-// É a inserção da árvore de busca comum com uma diferença: na volta da
-// recursão, cada nó do caminho atualiza a altura e se rebalanceia.
-func inserir(a *noAvl, k int) *noAvl {
-	if a == nil {
-		return &noAvl{chave: k}
+// inserir devolve a nova raiz da árvore depois de inserir a chave k.
+func inserir(n *noAvl, k int) *noAvl {
+	if n == nil {
+		return &noAvl{chave: k, alt: 1}
 	}
-
-	if k < a.chave {
-		a.esquerda = inserir(a.esquerda, k)
-	} else if k > a.chave {
-		a.direita = inserir(a.direita, k)
+	if k < n.chave {
+		n.esq = inserir(n.esq, k)
+	} else if k > n.chave {
+		n.dir = inserir(n.dir, k)
 	} else {
-		return a
+		return n
 	}
-
-	atualizarAltura(a)
-	return rebalancear(a)
+	return balancear(n)
 }
 
-// tira a chave k da árvore de raiz a e devolve a nova raiz
-// Como na inserção, cada nó do caminho de volta atualiza a altura e rebalanceia
-func remover(a *noAvl, k int) *noAvl {
-	if a == nil {
+func menorNo(n *noAvl) *noAvl {
+	for n.esq != nil {
+		n = n.esq
+	}
+	return n
+}
+
+// remover devolve a nova raiz da árvore depois de remover a chave k.
+func remover(n *noAvl, k int) *noAvl {
+	if n == nil {
 		return nil
 	}
-
-	if k < a.chave {
-		a.esquerda = remover(a.esquerda, k)
-	} else if k > a.chave {
-		a.direita = remover(a.direita, k)
+	if k < n.chave {
+		n.esq = remover(n.esq, k)
+	} else if k > n.chave {
+		n.dir = remover(n.dir, k)
 	} else {
-		if a.esquerda == nil {
-			return a.direita
+		if n.esq == nil {
+			return n.dir
 		}
-		if a.direita == nil {
-			return a.esquerda
+		if n.dir == nil {
+			return n.esq
 		}
-
-		aux := a.esquerda
-		for aux.direita != nil {
-			aux = aux.direita
-		}
-
-		a.chave = aux.chave
-		a.esquerda = remover(a.esquerda, aux.chave)
+		s := menorNo(n.dir)
+		n.chave = s.chave
+		n.dir = remover(n.dir, s.chave)
 	}
-
-	atualizarAltura(a)
-	return rebalancear(a)
+	return balancear(n)
 }
 
-// devolve a menor chave que seja maior ou igual a k, e true.
-// Se todas as chaves são menores que k, devolve false. Desce por um único caminho, guardando o melhor candidato visto.
-func sucessorOuIgual(a *noAvl, k int) (int, bool) {
-	melhor := 0
+// sucessorOuIgual devolve a menor chave >= k.
+func sucessorOuIgual(n *noAvl, k int) (int, bool) {
+	res := 0
 	achou := false
-	for a != nil {
-		if a.chave == k {
-			return a.chave, true
+	for n != nil {
+		if n.chave == k {
+			return k, true
 		}
-		if a.chave > k {
-			melhor = a.chave
+		if n.chave > k {
+			res = n.chave
 			achou = true
-			a = a.esquerda
+			n = n.esq
 		} else {
-			a = a.direita
+			n = n.dir
 		}
 	}
-	return melhor, achou
+	return res, achou
 }
 
-// devolve a maior chave que seja menor ou igual a k, e true.
-func antecessorOuIgual(a *noAvl, k int) (int, bool) {
-	melhor := 0
+// antecessorOuIgual devolve a maior chave <= k.
+func antecessorOuIgual(n *noAvl, k int) (int, bool) {
+	res := 0
 	achou := false
-	for a != nil {
-		if a.chave == k {
-			return a.chave, true
+	for n != nil {
+		if n.chave == k {
+			return k, true
 		}
-		if a.chave < k {
-			melhor = a.chave
+		if n.chave < k {
+			res = n.chave
 			achou = true
-			a = a.direita
+			n = n.dir
 		} else {
-			a = a.esquerda
+			n = n.esq
 		}
 	}
-	return melhor, achou
-}
-
-// visita todas as chaves de a que estão em [kmin, kmax] em ordem crescente
-func percorrerIntervalo(a *noAvl, kmin, kmax int, visitar func(int)) {
-	if a == nil {
-		return
-	}
-	if a.chave > kmin {
-		percorrerIntervalo(a.esquerda, kmin, kmax, visitar)
-	}
-	if a.chave >= kmin && a.chave <= kmax {
-		visitar(a.chave)
-	}
-	if a.chave < kmax {
-		percorrerIntervalo(a.direita, kmin, kmax, visitar)
-	}
+	return res, achou
 }
