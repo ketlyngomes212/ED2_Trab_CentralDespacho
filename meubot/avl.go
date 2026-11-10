@@ -1,6 +1,6 @@
-package main
+//avl.go implementa a AVL utilizada nas buscas por chamados
 
-// AVL de inteiros (chaves únicas). Cada linha do mapa tem a sua.
+package main
 
 type noAvl struct {
 	chave int
@@ -27,10 +27,12 @@ func atualizar(n *noAvl) {
 	n.alt = 1 + maxInt(alturaNo(n.esq), alturaNo(n.dir))
 }
 
+//fator de balanceamento da AVL
 func fatorBalanceamento(n *noAvl) int {
 	return alturaNo(n.esq) - alturaNo(n.dir)
 }
 
+//rotações da AVL
 func rotacaoDireita(y *noAvl) *noAvl {
 	x := y.esq
 	y.esq = x.dir
@@ -49,6 +51,7 @@ func rotacaoEsquerda(x *noAvl) *noAvl {
 	return y
 }
 
+//faz o balanceamento da AVL
 func balancear(n *noAvl) *noAvl {
 	atualizar(n)
 	fb := fatorBalanceamento(n)
@@ -67,7 +70,7 @@ func balancear(n *noAvl) *noAvl {
 	return n
 }
 
-// inserir devolve a nova raiz da árvore depois de inserir a chave k.
+//inserir devolve a nova raiz da árvore depois da inserção de uma chave k
 func inserir(n *noAvl, k int) *noAvl {
 	if n == nil {
 		return &noAvl{chave: k, alt: 1}
@@ -89,7 +92,7 @@ func menorNo(n *noAvl) *noAvl {
 	return n
 }
 
-// remover devolve a nova raiz da árvore depois de remover a chave k.
+//remover devolve a nova raiz da árvore depois de remover uma chave k
 func remover(n *noAvl, k int) *noAvl {
 	if n == nil {
 		return nil
@@ -112,7 +115,7 @@ func remover(n *noAvl, k int) *noAvl {
 	return balancear(n)
 }
 
-// sucessorOuIgual devolve a menor chave >= k.
+//sucessorOuIgual devolve a menor chave >= k.
 func sucessorOuIgual(n *noAvl, k int) (int, bool) {
 	res := 0
 	achou := false
@@ -131,7 +134,7 @@ func sucessorOuIgual(n *noAvl, k int) (int, bool) {
 	return res, achou
 }
 
-// antecessorOuIgual devolve a maior chave <= k.
+//antecessorOuIgual devolve a maior chave <= k.
 func antecessorOuIgual(n *noAvl, k int) (int, bool) {
 	res := 0
 	achou := false

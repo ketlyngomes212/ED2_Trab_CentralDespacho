@@ -1,6 +1,6 @@
-package main
+//heapPrazos.go implementa a fila de prioridade por prazo, utilizada para remoção de chamados expirados
 
-// Fila de prioridade (heap mínimo) ordenada pelo prazo dos chamados.
+package main
 
 type item struct {
 	prazo int
@@ -37,13 +37,13 @@ func (h *heapPrazos) descer(i int) {
 	}
 }
 
-// Inserir acrescenta um item no fim e o faz subir até o lugar certo.
+//Inserir acrescenta um item no fim e o faz subir até o lugar certo
 func (h *heapPrazos) Inserir(prazo, id int) {
 	h.itens = append(h.itens, item{prazo: prazo, id: id})
 	h.subir(len(h.itens) - 1)
 }
 
-// Topo devolve o item de menor prazo sem remover.
+//Topo devolve o item de menor prazo sem remover
 func (h *heapPrazos) Topo() (item, bool) {
 	if len(h.itens) == 0 {
 		return item{}, false
@@ -51,7 +51,7 @@ func (h *heapPrazos) Topo() (item, bool) {
 	return h.itens[0], true
 }
 
-// RemoverTopo remove e devolve o item de menor prazo.
+//RemoverTopo remove e devolve o item de menor prazo
 func (h *heapPrazos) RemoverTopo() (item, bool) {
 	if len(h.itens) == 0 {
 		return item{}, false
@@ -64,7 +64,7 @@ func (h *heapPrazos) RemoverTopo() (item, bool) {
 	return topo, true
 }
 
-// expirar remove da tabela e dos índices todos os chamados cujo prazo já passou.
+//expirar remove da tabela e dos índices todos os chamados cujo prazo já passou (prazo < turno)
 func expirar(turno int, h *heapPrazos, tab *tabelaChamados) {
 	for {
 		topo, ok := h.Topo()

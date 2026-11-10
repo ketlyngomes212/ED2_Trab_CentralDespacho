@@ -1,23 +1,22 @@
+//tabHash.go implementa a tabela hash com encadeamento dos chamados abertos indexados por id
+
 package main
 
-// Tabela hash (encadeamento com pool de nós) dos chamados abertos, indexada
-// pelo id. Sem map e sem alocação durante os turnos.
-
-// no guarda um chamado e o índice do próximo nó da mesma caixa
+//no guarda um chamado e o índice do próximo nó da mesma caixa
 type no struct {
 	prox    int
 	chamado Chamado
 }
 
 type tabelaChamados struct {
-	chaves  []int // chaves[caixa] = índice do primeiro nó da caixa (-1 se vazia)
+	chaves  []int //chaves[caixa] = índice do primeiro nó da caixa (-1 se vazia)
 	nos     []no
-	livre   int // primeiro nó livre do pool
+	livre   int //primeiro nó livre do pool
 	tamanho int
 }
 
-const tamanhoTabela = 1000003 // número de caixas (primo)
-const capacidadeNos = 1000000 // tamanho do pool de nós
+const tamanhoTabela = 1000003 //número de caixas
+const capacidadeNos = 1000000 //tamanho do pool de nós
 
 func posicao(id int) int {
 	return id % tamanhoTabela
@@ -39,7 +38,7 @@ func novaTabela() *tabelaChamados {
 	return t
 }
 
-// Inserir guarda o chamado. Devolve false se o pool acabou.
+//Inserir guarda o chamado. Devolve false se o pool acabou.
 func (t *tabelaChamados) Inserir(c Chamado) bool {
 	if t.livre == -1 {
 		return false
@@ -54,7 +53,7 @@ func (t *tabelaChamados) Inserir(c Chamado) bool {
 	return true
 }
 
-// Buscar procura o chamado de identificador id.
+//Buscar procura o chamado pelo id.
 func (t *tabelaChamados) Buscar(id int) (Chamado, bool) {
 	n := t.chaves[posicao(id)]
 	for n != -1 {
@@ -66,8 +65,7 @@ func (t *tabelaChamados) Buscar(id int) (Chamado, bool) {
 	return Chamado{}, false
 }
 
-// Remover tira o chamado da tabela e o devolve, para que quem chamou possa
-// retirá-lo também dos outros índices.
+//Remover tira o chamado da tabela e o devolve, para retirada em outros índices
 func (t *tabelaChamados) Remover(id int) (Chamado, bool) {
 	caixa := posicao(id)
 	anterior := -1

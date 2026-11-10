@@ -1,4 +1,4 @@
-//O distancia.go implementa a distância de Manhattan, utilizada para a locomoção das ambulâncias.
+//distancia.go implementa a distância de Manhattan e a direção das ambulâncias
 
 package main
 

@@ -1,12 +1,6 @@
-package main
+//buscaAmbulancia.go realiza a busca pelo chamado mais próximo
 
-// Escolhe o chamado mais próximo que ainda vale a pena para uma ambulância
-// livre, usando um índice espacial.
-// 1- buscarMelhor olha a linha da ambulância, depois uma acima e uma abaixo,
-//    depois duas acima e duas abaixo, e assim por diante;
-// 2- melhorNaLinha, em cada linha, compara o melhor à direita e o melhor à esquerda;
-// 3- vizinhoDireita e vizinhoEsquerda andam pela árvore da linha, a partir da
-//    coluna da ambulância, pulando os chamados que não servem.
+package main
 
 func chamadoOcupado(ids []int, id int) bool {
 	for _, atual := range ids {
@@ -17,15 +11,13 @@ func chamadoOcupado(ids []int, id int) bool {
 	return false
 }
 
-// chamadoServe diz se o chamado c pode ser escolhido pela ambulância em
-// (ax, ay) no turno. A ambulância chega no turno turno+dist-1.
+//chamadoServe diz se o chamado c pode ser atribuído pela ambulância
 func chamadoServe(c Chamado, ax, ay, turno int, atribuidos []int) bool {
 	return !chamadoOcupado(atribuidos, c.ID) &&
 		turno+calculaDistancia(c.X, c.Y, ax, ay)-1 <= c.Prazo
 }
 
-// vizinhoDireita devolve, na linha y, o chamado mais próximo que serve e que
-// esteja na coluna ax ou à direita. Só aceita distância menor que limite.
+//vizinhoDireita devolve, na linha y, o chamado mais próximo que serve e que esteja na coluna ax ou à direita
 func (e *indiceEspacial) vizinhoDireita(y, ax, ay, turno, limite int, atribuidos []int, tab *tabelaChamados) (Chamado, bool) {
 	raiz := e.linhas[y]
 	k, ok := sucessorOuIgual(raiz, chave(ax, 0))
@@ -42,8 +34,7 @@ func (e *indiceEspacial) vizinhoDireita(y, ax, ay, turno, limite int, atribuidos
 	return Chamado{}, false
 }
 
-// vizinhoEsquerda é o espelho: o chamado mais próximo que serve na coluna
-// ax-1 ou à esquerda dela.
+//vizinhoEsquerda é o espelho: o chamado mais próximo que serve na coluna ax-1 ou à esquerda dela.
 func (e *indiceEspacial) vizinhoEsquerda(y, ax, ay, turno, limite int, atribuidos []int, tab *tabelaChamados) (Chamado, bool) {
 	raiz := e.linhas[y]
 	k, ok := antecessorOuIgual(raiz, chave(ax, 0)-1)
@@ -60,7 +51,7 @@ func (e *indiceEspacial) vizinhoEsquerda(y, ax, ay, turno, limite int, atribuido
 	return Chamado{}, false
 }
 
-// melhorNaLinha olha os dois lados da ambulância. Empate: fica o da direita.
+//melhorNaLinha compara o melhor candidato de cada lado e define o melhor entre os dois
 func (e *indiceEspacial) melhorNaLinha(y, ax, ay, turno, limite int, atribuidos []int, tab *tabelaChamados) (Chamado, bool) {
 	cd, okD := e.vizinhoDireita(y, ax, ay, turno, limite, atribuidos, tab)
 	ce, okE := e.vizinhoEsquerda(y, ax, ay, turno, limite, atribuidos, tab)
@@ -80,8 +71,7 @@ func (e *indiceEspacial) melhorNaLinha(y, ax, ay, turno, limite int, atribuidos 
 	return ce, true
 }
 
-// buscarMelhor devolve o chamado mais próximo que serve para a ambulância em
-// (ax, ay), a menos de limiteInicial células, ou false se nenhum servir.
+//buscarMelhor realiza a expansão linha a linha, quando encontra um candidato, define ele como limite
 func (e *indiceEspacial) buscarMelhor(ax, ay, turno, limiteInicial int, atribuidos []int, tab *tabelaChamados) (Chamado, bool) {
 	altura := len(e.linhas)
 	limite := limiteInicial

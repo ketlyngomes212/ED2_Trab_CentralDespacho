@@ -1,13 +1,13 @@
-//O modelo.go contém todas as representações dos elementos do jogo.
+//modelo.go contém todas as representações dos elementos do jogo
 
 package main
 
 type Chamado struct {
-	ID           int
-	X            int
-	Y            int
-	Prazo        int
-	Valor        int
+	ID    int
+	X     int
+	Y     int
+	Prazo int
+	Valor int
 }
 
 //ehGrave verifica se um chamado é grave

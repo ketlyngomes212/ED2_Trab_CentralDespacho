@@ -1,6 +1,8 @@
+//estrategia.go define como cada ambulância vai jogar no turno
+
 package main
 
-// escolherHospital seleciona o hospital mais próximo.
+//escolherHospital seleciona o hospital mais próximo
 func escolherHospital(ambulancia Ambulancia, hospitais []Hospital) (Hospital, bool) {
 	var escolhido Hospital
 	encontrou := false
@@ -17,8 +19,7 @@ func escolherHospital(ambulancia Ambulancia, hospitais []Hospital) (Hospital, bo
 	return escolhido, encontrou
 }
 
-// proximoMovimento define para onde a ambulância vai e qual chamado ela
-// escolheu (-1 se nenhum).
+//proximoMovimento define para onde a ambulância vai e qual chamado ela escolheu
 func proximoMovimento(ambulancia Ambulancia, hospitais []Hospital,
 	atribuidos []int, turno int) (string, int) {
 
@@ -30,7 +31,7 @@ func proximoMovimento(ambulancia Ambulancia, hospitais []Hospital,
 		return direcao(ambulancia.X, ambulancia.Y, chamado.X, chamado.Y), chamado.ID
 	}
 
-	// Ambulância ocupada vai para o hospital mais próximo
+	//ambulância ocupada vai para o hospital mais próximo
 	hospital, encontrou := escolherHospital(ambulancia, hospitais)
 	if !encontrou {
 		return "P", -1

@@ -1,24 +1,21 @@
+//chaveAVL.go define a chave usada nas AVLs em cada linha
+
 package main
 
-// A chave que as AVLs por linha usam para guardar os chamados.
-// Cada nó da AVL guarda um único inteiro, mas uma linha pode ter vários
-// chamados na mesma coluna x. A solução é juntar x e id num número só:
-// x * deslocamento + id.
-
-// deslocamento é 2 elevado a 32
+//deslocamento é 2 elevado a 32
 const deslocamento = 4294967296
 
-// chave junta a coluna x e o id do chamado num único número.
+//a chave é resultado da junção da coluna do chamado e do seu id
 func chave(x, id int) int {
 	return x*deslocamento + id
 }
 
-// xDaChave devolve a coluna x guardada numa chave.
+//xDaChave devolve a coluna x guardada numa chave
 func xDaChave(k int) int {
 	return k / deslocamento
 }
 
-// idDaChave devolve o id do chamado guardado numa chave.
+//idDaChave devolve o id do chamado guardado numa chave
 func idDaChave(k int) int {
 	return k % deslocamento
 }

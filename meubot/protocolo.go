@@ -1,3 +1,5 @@
+//protocolo.go realiza a comunicação com o servidor
+
 package main
 
 import (
@@ -11,11 +13,11 @@ var (
 	leitor      *bufio.Scanner
 	escritor    *bufio.Writer
 	hospitais   []Hospital
-	tab         *tabelaChamados // chamados abertos por id
-	filaPrazos  *heapPrazos     // prazos dos chamados abertos (o menor no topo)
-	alturaMapa  int             // número de linhas do mapa
-	indice      *indiceEspacial // chamados comuns abertos por posição
-	buffAtribui []int           // reaproveitado a cada turno
+	tab         *tabelaChamados //chamados abertos por id
+	filaPrazos  *heapPrazos     //prazos dos chamados abertos (o menor no topo)
+	alturaMapa  int             //número de linhas do mapa
+	indice      *indiceEspacial //chamados comuns abertos por posição
+	buffAtribui []int           //reaproveitado a cada turno
 )
 
 // lerCampos lê uma linha e separa em campos; nil quando acaba a entrada.
